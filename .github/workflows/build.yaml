@@ -28,4 +28,7 @@ jobs:
           docker tag ciri_model_pipeline:latest \
                       ghcr.io/${{ github.repository }}/ciri_model_pipeline:latest
 
-            
+      - name: Push Container Image
+        run: |
+          set -e
+          docker push ghcr.io/${{ github.repository }}/ciri_model_pipeline:latest
