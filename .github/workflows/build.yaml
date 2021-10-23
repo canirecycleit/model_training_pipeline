@@ -1,0 +1,31 @@
+name: CIRI Model Pipeline Build
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  buildContainer:
+    runs-on: ubuntu-latest
+    setps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Login to Docker Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ghrc.io
+          username: ${{ secrets.REPO_LOGIN_USER }}
+          password: ${{ secrets.REPO_LOGIN_PASS }}
+
+      - name: Build Container Image
+        run: |
+          set -e
+          docker-compose build
+          docker tag ciri_model_pipeline:latest \
+                      ghcr.io/${{ github.repository }}/ciri_model_pipeline:latest
+
+            
