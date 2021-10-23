@@ -8,7 +8,7 @@ on:
 jobs:
   buildContainer:
     runs-on: ubuntu-latest
-    setps:
+    steps:
       - name: Checkout Code
         uses: actions/checkout@v2
         with:
