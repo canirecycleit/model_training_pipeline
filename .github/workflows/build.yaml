@@ -3,7 +3,7 @@ name: CIRI Model Pipeline Build
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   buildContainer:
