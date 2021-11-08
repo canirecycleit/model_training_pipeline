@@ -57,7 +57,7 @@ class SplitTrainingValidationTask(luigi.Task):
                 )
 
 
-class TrainTFRecordTask(luigi.Task):
+class BuildTFRecordTask(luigi.Task):
 
     _batch_size = 128
     _image_width = 256
@@ -67,13 +67,13 @@ class TrainTFRecordTask(luigi.Task):
     _num_shards = 10
 
     _data_dir = "./data"
-    _training_output = "tfrecord_training"
+    _folder_output = "tfrecord_output"
 
     def requires(self):
         return SplitTrainingValidationTask()
 
     def output(self):
-        return luigi.LocalTarget(os.path.join(self._data_dir, self._training_output))
+        return luigi.LocalTarget(os.path.join(self._data_dir, self._folder_output))
 
     def create_tf_example(self, item):
 
@@ -138,11 +138,21 @@ class TrainTFRecordTask(luigi.Task):
                 [(label, os.path.join(input_folder, label, f)) for f in image_files]
             )
 
-        os.makedirs(os.path.join(self._data_dir, self._training_output))
+        os.makedirs(os.path.join(self._data_dir, self._folder_output))
 
         # Create TF Records for train
         self.create_tf_records(
             data_list,
             num_shards=self._num_shards,
-            folder=os.path.join(self._data_dir, self._training_output),
+            folder=os.path.join(self._data_dir, self._folder_output),
         )
+
+
+class TrainTFRecordTask(BuildTFRecordTask):
+
+    _folder_output = "tfrecord_training"
+
+
+class ValidationTFRecordTask(BuildTFRecordTask):
+
+    _folder_output = "tfrecord_validation"
