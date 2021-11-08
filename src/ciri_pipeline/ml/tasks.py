@@ -176,6 +176,9 @@ class TrainModel(luigi.Task):
     # TODO: This shouldn't be hard-coded
     _num_classes = 3
 
+    _data_dir = "./data"
+    _output_folder = "trained_model"
+
     _feature_description = {
         "image": tf.io.FixedLenFeature([], tf.string),
         "label": tf.io.FixedLenFeature([], tf.int64),
@@ -185,6 +188,10 @@ class TrainModel(luigi.Task):
 
     def requires(self):
         return TrainTFRecordTask()
+
+    def output(self):
+
+        return [luigi.LocalTarget(os.path.join(self._data_dir, self._output_folder))]
 
     def parse_tfrecord(self, proto):
         parsed_record = tf.io.parse_single_example(proto, self._feature_description)
@@ -313,3 +320,6 @@ class TrainModel(luigi.Task):
             mlflow.keras.log_model(
                 model, "model", registered_model_name="ciri_trashnet_model"
             )
+
+        print("Finished model pipeline")
+        os.makedirs(os.path.join(self._data_dir, self._output_folder))
