@@ -4,9 +4,9 @@ import luigi
 from google.cloud import storage
 
 
-class DownloadTrainingFiles(luigi.Task):
+class DownloadTrainingFilesTask(luigi.Task):
 
-    _data_dir = "./data/training"
+    _data_dir = "./data/raw"
     _gcs_project_name = "CIRI"
     _gcs_bucket_name = "canirecycleit-data"
 

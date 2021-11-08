@@ -1,11 +1,11 @@
 import luigi
 
-from ciri_pipeline import tasks
+from ciri_pipeline.ml.tasks import TrainTFRecordTask
 
 
 def main():
 
-    task = tasks.DownloadTrainingFiles()
+    task = TrainTFRecordTask()
     luigi.build([task], local_scheduler=True)
 
 
