@@ -407,6 +407,7 @@ class TrainModel(luigi.Task):
             history = training_results.history
             mlflow.log_metric("accuracy", history["accuracy"][-1])
             mlflow.log_metric("val_loss", history["val_loss"][-1])
+            mlflow.log_param("epochs", len(history["accuracy"]))
 
             # Log label mapping for retrieval with model:
             mlflow.log_artifact(label_mapping)
