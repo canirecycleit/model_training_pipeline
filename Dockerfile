@@ -22,6 +22,7 @@ COPY . /app
 # Update PIP & install package/requirements
 RUN python -m pip install --upgrade pip
 RUN pip install -e .
+RUN pip install --upgrade tensorflow-hub
 
 # Run the command on container startup
 # CMD cron && tail -f /var/log/cron.log

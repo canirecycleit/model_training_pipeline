@@ -3,9 +3,16 @@ import pathlib
 import shutil
 
 import luigi
+import mlflow
 import tensorflow as tf
+import tensorflow_hub as hub
+from ciri_pipeline import ml
 from ciri_pipeline.io.tasks import DownloadTrainingFilesTask
+from keras.callbacks import EarlyStopping
 from numpy.random import choice
+from tensorflow import keras
+from tensorflow.keras import layers
+from tensorflow.keras.models import Sequential
 
 
 class SplitTrainingValidationTask(luigi.Task):
@@ -156,3 +163,153 @@ class TrainTFRecordTask(BuildTFRecordTask):
 class ValidationTFRecordTask(BuildTFRecordTask):
 
     _folder_output = "tfrecord_validation"
+
+
+class TrainModel(luigi.Task):
+
+    _batch_size = 128
+
+    _image_width = 256
+    _image_height = 192
+    _num_channels = 3
+
+    # TODO: This shouldn't be hard-coded
+    _num_classes = 3
+
+    _feature_description = {
+        "image": tf.io.FixedLenFeature([], tf.string),
+        "label": tf.io.FixedLenFeature([], tf.int64),
+        "width": tf.io.FixedLenFeature([], tf.int64),
+        "height": tf.io.FixedLenFeature([], tf.int64),
+    }
+
+    def requires(self):
+        return TrainTFRecordTask()
+
+    def parse_tfrecord(self, proto):
+        parsed_record = tf.io.parse_single_example(proto, self._feature_description)
+
+        image = tf.io.decode_raw(parsed_record["image"], tf.uint8)
+        image.set_shape([self._num_channels * self._image_height * self._image_width])
+        image = tf.reshape(
+            image, [self._image_height, self._image_width, self._num_channels]
+        )
+        # Label
+        label = tf.cast(parsed_record["label"], tf.int32)
+        # label = tf.one_hot(label, num_classes)
+
+        return image, label
+
+    # Normalize pixels
+    def normalize(self, image, label):
+        image = image / 255
+        return image, label
+
+    def build_transfer_model(self):
+        """Build a transfer model based on mobile-net pre-trained architecture."""
+        input_shape = [
+            self._image_height,
+            self._image_width,
+            self._num_channels,
+        ]  # height, width, channels
+        handle = (
+            "https://tfhub.dev/google/imagenet/inception_resnet_v2/classification/5"
+        )
+
+        # Regularize using L1
+        kernel_weight = 0.02
+        bias_weight = 0.02
+
+        model = Sequential(
+            [
+                keras.layers.InputLayer(input_shape=input_shape),
+                hub.KerasLayer(handle, trainable=False),
+                keras.layers.Dense(
+                    units=124,
+                    activation="relu",
+                    kernel_regularizer=keras.regularizers.l1(kernel_weight),
+                    bias_regularizer=keras.regularizers.l1(bias_weight),
+                ),
+                keras.layers.Dense(
+                    units=64,
+                    activation="relu",
+                    kernel_regularizer=keras.regularizers.l1(kernel_weight),
+                    bias_regularizer=keras.regularizers.l1(bias_weight),
+                ),
+                keras.layers.Dense(
+                    units=self._num_classes,
+                    activation=None,
+                    kernel_regularizer=keras.regularizers.l1(kernel_weight),
+                    bias_regularizer=keras.regularizers.l1(bias_weight),
+                ),
+            ],
+            name="transfer_model",
+        )
+
+        return model
+
+    def run(self):
+        AUTOTUNE = tf.data.experimental.AUTOTUNE
+
+        input_folder = self.input().path
+        train_tfrecord_files = tf.data.Dataset.list_files(input_folder + "/*")
+
+        data_augmentation = tf.keras.Sequential(
+            [
+                layers.experimental.preprocessing.RandomFlip("horizontal_and_vertical"),
+                layers.experimental.preprocessing.RandomRotation(0.2),
+                layers.experimental.preprocessing.RandomZoom(0.2, 0.2),
+            ]
+        )
+
+        # Train pipeline:
+        train_data = train_tfrecord_files.flat_map(tf.data.TFRecordDataset)
+        train_data = train_data.map(self.parse_tfrecord, num_parallel_calls=AUTOTUNE)
+        train_data = train_data.map(self.normalize, num_parallel_calls=AUTOTUNE)
+        train_data = train_data.map(
+            lambda x, y: (data_augmentation(x, training=True), y),
+            num_parallel_calls=AUTOTUNE,
+        )
+        train_data = train_data.batch(self._batch_size)
+        train_data = train_data.prefetch(buffer_size=AUTOTUNE)
+
+        # Model Training Parameters
+        learning_rate = 0.01
+        decay_rate = 0.5
+        epochs = 2
+
+        # Model parameters
+        optimizer = keras.optimizers.SGD(learning_rate=learning_rate)
+        loss = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+        es = EarlyStopping(monitor="val_accuracy", verbose=1, patience=3)
+        lr = keras.callbacks.LearningRateScheduler(
+            lambda epoch: learning_rate / (1 + decay_rate * epoch)
+        )
+
+        with mlflow.start_run():
+
+            # Execute different model approaches and save experiment results:
+            model = self.build_transfer_model()
+
+            print(model.summary())
+            model.compile(
+                loss=loss,
+                optimizer=optimizer,
+                metrics=["accuracy", "sparse_categorical_accuracy"],
+            )
+
+            # Train model
+            training_results = model.fit(
+                train_data,
+                validation_data=train_data,
+                epochs=epochs,
+                callbacks=[es, lr],
+                verbose=1,
+            )
+
+            mlflow.log_param("decay_rate", decay_rate)
+            mlflow.log_param("learning_rate", learning_rate)
+
+            mlflow.keras.log_model(
+                model, "model", registered_model_name="ciri_trashnet_model"
+            )
