@@ -15,14 +15,16 @@ RUN chmod 0644 /etc/cron.d/simple-cron
 # Create the log file to be able to run tail
 RUN touch /var/log/cron.log
 
-
 WORKDIR /app
 
 COPY . /app
 
-# Update PIP & install requirements
+# Update PIP & install package/requirements
 RUN python -m pip install --upgrade pip
-RUN pip install -r requirements.txt
+RUN pip install -e .
 
 # Run the command on container startup
-CMD cron && tail -f /var/log/cron.log
+# CMD cron && tail -f /var/log/cron.log
+
+# Execute the machine learning pipeline:
+CMD python pipeline.py

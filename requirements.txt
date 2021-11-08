@@ -1,3 +1,7 @@
+# dependencies
 mlflow
+google-cloud-storage
 pandas
 scikit-learn
+luigi
+tensorflow
