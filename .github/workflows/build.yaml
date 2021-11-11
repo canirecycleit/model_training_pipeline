@@ -22,9 +22,11 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Container Image
+        env:
+          - DOCKER_BUILDKIT: 1
         run: |
           set -e
-          docker-compose build model-pipeline
+          docker build -t ciri_model_pipeline:latest .
           docker tag ciri_model_pipeline:latest \
                       ghcr.io/${{ github.repository }}/ciri_model_pipeline:latest
 
