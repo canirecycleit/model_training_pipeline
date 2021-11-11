@@ -25,6 +25,7 @@ class DownloadTrainingFilesTask(luigi.Task):
         blobs = bucket.list_blobs()
 
         # Create data-folder:
+        os.makedirs(PIPELINE_DATA_DIR, exist_ok=True)
         os.makedirs(self._data_dir, exist_ok=True)
 
         # Download blob files:
@@ -37,5 +38,8 @@ class DownloadTrainingFilesTask(luigi.Task):
                 os.makedirs(directory, exist_ok=True)
 
             if not blob.name.endswith("/"):
-                blob.download_to_filename(destination)
-                logging.info(f"Downloaded: {blob.name}")
+                if not os.path.exists(destination):
+                    blob.download_to_filename(destination)
+                    logging.info(f"Downloaded: {blob.name}")
+                else:
+                    logging.info(f"Already exists: {blob.name}")
