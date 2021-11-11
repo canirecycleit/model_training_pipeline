@@ -23,7 +23,7 @@ jobs:
 
       - name: Build Container Image
         env:
-          - DOCKER_BUILDKIT: 1
+          DOCKER_BUILDKIT: 1
         run: |
           set -e
           docker build -t ciri_model_pipeline:latest .
