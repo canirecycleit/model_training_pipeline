@@ -5,4 +5,5 @@ pandas
 scikit-learn
 luigi
 tensorflow
+tensorflow-hub
 python-dotenv
