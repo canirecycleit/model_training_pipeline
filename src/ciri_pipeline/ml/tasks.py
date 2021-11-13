@@ -382,7 +382,14 @@ class TrainModel(luigi.Task):
         with mlflow.start_run():
 
             # Execute different model approaches and save experiment results:
-            model = self.build_transfer_model(num_classes=num_classes)
+            model = None
+
+            # In case connection errors that cause resets:
+            while not model:
+                try:
+                    self.build_transfer_model(num_classes=num_classes)
+                except ConnectionResetError as err:
+                    logging.error(str(err))
 
             print(model.summary())
             model.compile(
