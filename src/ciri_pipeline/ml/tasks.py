@@ -10,19 +10,21 @@ import mlflow
 import tensorflow as tf
 import tensorflow_hub as hub
 from ciri_pipeline.io.tasks import DownloadTrainingFilesTask
-from ciri_pipeline.settings import PIPELINE_DATA_DIR, VALIDATION_PCNT
 from keras.callbacks import EarlyStopping
 from numpy.random import choice
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
 
+# Set log-level to INFO:
+logging.basicConfig(level=logging.INFO)
+
 
 class SplitTrainingValidationTask(luigi.Task):
     """Splits files into training and validation folders."""
 
-    _data_dir = PIPELINE_DATA_DIR
-    _validation_percent = VALIDATION_PCNT
+    _data_dir = settings.PIPELINE_DATA_DIR
+    _validation_percent = settings.VALIDATION_PCNT
 
     _validation_output = "raw_validation"
     _training_output = "raw_training"
@@ -64,6 +66,7 @@ class SplitTrainingValidationTask(luigi.Task):
             logging.info("Serialized mapping.json file.")
 
     def run(self):
+        logging.info(f"Running: {self.__class__.__name__}")
 
         # Get downloaded raw data:
         input_folder = self.input().path
@@ -187,6 +190,7 @@ class BuildTFRecordTask(luigi.Task):
                     writer.write(tf_example.SerializeToString())
 
     def run(self):
+        logging.info(f"Running: {self.__class__.__name__}")
 
         # Guard-statement:
         if self._input_index > 1:
@@ -348,6 +352,8 @@ class TrainModel(luigi.Task):
     def run(self):
         """Build data pipeline and train resulting model."""
 
+        logging.info(f"Running: {self.__class__.__name__}")
+
         training_input_folder = self.input()[0].path
         validation_input_folder = self.input()[1].path
 
@@ -357,6 +363,7 @@ class TrainModel(luigi.Task):
             index2label = json.loads(f.read())
 
         num_classes = len(index2label)
+        logging.info(f"Classifying {num_classes} classes")
 
         train_tfrecord_files = tf.data.Dataset.list_files(training_input_folder + "/*")
         validation_tfrecord_files = tf.data.Dataset.list_files(
@@ -367,9 +374,11 @@ class TrainModel(luigi.Task):
         validation_data = self.build_pipeline(validation_tfrecord_files)
 
         # Model Training Parameters
-        learning_rate = 0.01
-        decay_rate = 0.5
-        epochs = 2
+        learning_rate = settings.LEARNING_RATE
+        decay_rate = settings.DECAY_RATE
+        epochs = settings.EPOCHS
+
+        logging.info(f"Training for {epochs} epochs")
 
         # Model parameters
         optimizer = keras.optimizers.SGD(learning_rate=learning_rate)
@@ -379,6 +388,7 @@ class TrainModel(luigi.Task):
             lambda epoch: learning_rate / (1 + decay_rate * epoch)
         )
 
+        logging.info("Starting MLflow tracking")
         with mlflow.start_run():
 
             # Execute different model approaches and save experiment results:
@@ -387,7 +397,7 @@ class TrainModel(luigi.Task):
             # In case connection errors that cause resets:
             while not model:
                 try:
-                    self.build_transfer_model(num_classes=num_classes)
+                    model = self.build_transfer_model(num_classes=num_classes)
                 except ConnectionResetError as err:
                     logging.error(str(err))
 
