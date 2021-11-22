@@ -172,12 +172,12 @@ class BuildTFRecordTask(luigi.Task):
 
         for i in range(0, num_records, step_size):
             logging.info(
-                "Creating shard:",
-                (i // step_size),
-                " from records:",
-                i,
-                "to",
-                (i + step_size),
+                "Creating shard:" +
+                str(i // step_size) +
+                " from records:" +
+                str(i) +
+                "to" +
+                str(i + step_size)
             )
             path = "{}/{}_000{}.tfrecords".format(folder, prefix, i // step_size)
             logging.info(path)
@@ -388,7 +388,8 @@ class TrainModel(luigi.Task):
             lambda epoch: learning_rate / (1 + decay_rate * epoch)
         )
 
-        logging.info("Starting MLflow tracking")
+        logging.info(f"Starting MLflow tracking to: {mlflow.get_tracking_uri()}")
+        
         with mlflow.start_run():
 
             # Execute different model approaches and save experiment results:
