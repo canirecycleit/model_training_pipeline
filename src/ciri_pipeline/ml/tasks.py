@@ -172,12 +172,12 @@ class BuildTFRecordTask(luigi.Task):
 
         for i in range(0, num_records, step_size):
             logging.info(
-                "Creating shard:" +
-                str(i // step_size) +
-                " from records:" +
-                str(i) +
-                "to" +
-                str(i + step_size)
+                "Creating shard:"
+                + str(i // step_size)
+                + " from records:"
+                + str(i)
+                + "to"
+                + str(i + step_size)
             )
             path = "{}/{}_000{}.tfrecords".format(folder, prefix, i // step_size)
             logging.info(path)
@@ -286,12 +286,15 @@ class TrainModel(luigi.Task):
         ]
 
         handle = (
-            "https://tfhub.dev/google/imagenet/inception_resnet_v2/classification/5"
+            # "https://tfhub.dev/google/imagenet/inception_resnet_v2/classification/5"
+            "https://tfhub.dev/google/imagenet/efficientnet_v2_imagenet21k_ft1k_b1/classification/2"
         )
 
         # Regularize using L1
-        kernel_weight = 0.02
+        # kernel_weight = 0.02
+        kernel_weight = 0.0001
         bias_weight = 0.02
+        drop_out_weight = 0.2
 
         model = Sequential(
             [
@@ -301,19 +304,21 @@ class TrainModel(luigi.Task):
                     units=124,
                     activation="relu",
                     kernel_regularizer=keras.regularizers.l1(kernel_weight),
-                    bias_regularizer=keras.regularizers.l1(bias_weight),
+                    # bias_regularizer=keras.regularizers.l1(bias_weight),
                 ),
+                keras.layers.Dropout(rate=drop_out_weight),
                 keras.layers.Dense(
                     units=64,
                     activation="relu",
                     kernel_regularizer=keras.regularizers.l1(kernel_weight),
-                    bias_regularizer=keras.regularizers.l1(bias_weight),
+                    # bias_regularizer=keras.regularizers.l1(bias_weight),
                 ),
+                keras.layers.Dropout(rate=drop_out_weight),
                 keras.layers.Dense(
                     units=num_classes,
                     activation=None,
                     kernel_regularizer=keras.regularizers.l1(kernel_weight),
-                    bias_regularizer=keras.regularizers.l1(bias_weight),
+                    # bias_regularizer=keras.regularizers.l1(bias_weight),
                 ),
             ],
             name="transfer_model",
@@ -389,7 +394,7 @@ class TrainModel(luigi.Task):
         )
 
         logging.info(f"Starting MLflow tracking to: {mlflow.get_tracking_uri()}")
-        
+
         with mlflow.start_run():
 
             # Execute different model approaches and save experiment results:
@@ -418,6 +423,7 @@ class TrainModel(luigi.Task):
                 verbose=1,
             )
 
+            mlflow.log_param("model_origin", "efficientnet_v2_imagenet21k_ft1k_b1")
             mlflow.log_param("decay_rate", decay_rate)
             mlflow.log_param("learning_rate", learning_rate)
             mlflow.log_param("num_classes", num_classes)

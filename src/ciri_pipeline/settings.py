@@ -19,6 +19,7 @@ IMAGE_WIDTH = os.environ.get("IMAGE_WIDTH", 256)
 IMAGE_HEIGHT = os.environ.get("IMAGE_HEIGHT", 192)
 
 # Define ML Hyperparameters:
-EPOCHS = os.environ.get("EPOCHS", 2)
+# EPOCHS = os.environ.get("EPOCHS", 2)
+EPOCHS = os.environ.get("EPOCHS", 15)
 DECAY_RATE = os.environ.get("DECAY_RATE", 0.5)
 LEARNING_RATE = os.environ.get("LEARNING_RATE", 0.01)
