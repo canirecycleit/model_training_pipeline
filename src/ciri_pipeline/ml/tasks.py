@@ -9,7 +9,7 @@ import luigi
 import mlflow
 import tensorflow as tf
 import tensorflow_hub as hub
-from ciri_pipeline.io.tasks import DownloadTrainingFilesTask
+from ciri_pipeline.io.tasks import LimitTrainingFiles
 from keras.callbacks import EarlyStopping
 from numpy.random import choice
 from tensorflow import keras
@@ -32,7 +32,7 @@ class SplitTrainingValidationTask(luigi.Task):
     _label_map_output_file = "mapping.json"
 
     def requires(self):
-        return DownloadTrainingFilesTask()
+        return LimitTrainingFiles()
 
     def output(self):
         train_output = os.path.join(self._data_dir, self._training_output)

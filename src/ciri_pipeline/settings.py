@@ -10,6 +10,7 @@ load_dotenv()
 PIPELINE_DATA_DIR = os.environ.get("DATA_DIR", "./data")
 GCS_PROJECT_NAME = os.environ.get("GCS_PROJECT_NAME", "CIRI")
 GCS_DATA_BUCKET = os.environ.get("GCS_DATA_BUCKET", "canirecycleit-data")
+MAX_DL_FILES = os.environ.get("MAX_DL_FILES", 300)
 NUM_SHARDS = os.environ.get("NUM_SHARDS", 10)
 
 # Define ML configurations:
